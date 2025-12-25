@@ -1,8 +1,9 @@
 import { Module } from "@danet/core";
-import { AppController } from "./app.controller.ts";
+import { HealthController } from "./health.controller.ts";
+import { PDFModule } from "./modules/pdf/module.ts";
 
 @Module({
-  controllers: [AppController],
-  imports: [],
+  controllers: [HealthController],
+  imports: [PDFModule],
 })
 export class AppModule {}

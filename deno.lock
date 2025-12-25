@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@danet/core@*": "2.9.6",
     "jsr:@danet/core@2": "2.9.6",
     "jsr:@danet/core@^2.5.1": "2.9.6",
     "jsr:@danet/swagger@2": "2.3.2",
