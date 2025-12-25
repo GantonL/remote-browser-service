@@ -1,0 +1,28 @@
+{
+  "lint": {
+    "rules": {
+      "exclude": ["require-await"]
+    }
+  },
+  "fmt": {
+    "options": {
+      "singleQuote": true
+    }
+  },
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "imports": {
+    "@danet/core": "jsr:@danet/core@2",
+    "@std/dotenv": "jsr:@std/dotenv@^0.225.3",
+    "@bartlomieju/postgres": "jsr:@bartlomieju/postgres",
+    "@danet/swagger": "jsr:@danet/swagger@2",
+    "@std/assert": "jsr:@std/assert@1.0.6",
+    "@std/testing": "jsr:@std/testing@1.0.3"
+  },
+  "tasks": {
+    "launch-server": "deno run --allow-net --allow-read --unstable --allow-env run.ts",
+    "test": "deno test -A --unstable spec"
+  }
+}
