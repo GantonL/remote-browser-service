@@ -8,6 +8,7 @@
         "enable": true,
         "importmap": "import_map.json"
       }
-    ]
+    ],
+    "lib": ["ES2024"]
   }
 }
