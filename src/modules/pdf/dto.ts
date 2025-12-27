@@ -4,16 +4,16 @@ import { IsObject, IsString, IsUrl } from "@danet/core/validation";
 
 export class GeneratePDFDto {
   @IsString()
-  @IsUrl()
+  // @IsUrl()
   url!: string;
 
   @IsString()
-  @IsUrl()
+  // @IsUrl()
   webhookUrl!: string;
   
   @IsString()
-  containerClass?: string;
+  containerClass!: string;
   
   @IsObject()
-  options?: PDFOptions;
+  options!: PDFOptions;
 }
