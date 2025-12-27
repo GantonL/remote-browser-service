@@ -25,8 +25,14 @@ export class PDFService {
       await page.goto(dto.url, { waitUntil: "networkidle2" });
 
       const pdfOptions: PDFOptions = {
-        format: dto.options?.format ?? "A4",
         ...dto.options,
+        format: dto.options?.format ?? "A4",
+        margin: dto.options?.margin ?? {
+          top: "5mm",
+          bottom: "5mm",
+          left: "5mm",
+          right: "5mm",
+        },
         path: "test.pdf",
       };
 

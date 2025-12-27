@@ -5,6 +5,15 @@ import { loggerMiddleware } from "./logger.middleware.ts";
 import { SpecBuilder, SwaggerModule } from "@danet/swagger";
 export const bootstrap = async () => {
   const application = new DanetApplication();
+  application.enableCors({
+    origin: "*",
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: [
+      "Content-Type", 
+      "Authorization", 
+      "Access-Control-Allow-Origin",
+    ],
+  });
   await application.init(AppModule);
   // const spec = new SpecBuilder()
   //   .setTitle("Remote Browser Service")
