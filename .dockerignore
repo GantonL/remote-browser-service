@@ -1,0 +1,9 @@
+.git
+.github
+node_modules
+dist
+cov_profile
+lcov.info
+.DS_Store
+*.log
+test.pdf
