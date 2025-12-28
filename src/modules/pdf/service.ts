@@ -43,12 +43,13 @@ export class PDFService {
       const pdfBuffer = await page.pdf(pdfOptions);
 
       if (dto.webhookUrl) {
+        const blob = new Blob([new Uint8Array(pdfBuffer)], { type: 'application/pdf' });
+        const formData = new FormData();
+        formData.append('file', blob, 'document.pdf');
         await fetch(dto.webhookUrl, {
           method: "POST",
-          body: pdfBuffer,
-          headers: { "Content-Type": "application/pdf" },
+          body: formData,
         });
-        return;
       }
 
       return pdfBuffer;
