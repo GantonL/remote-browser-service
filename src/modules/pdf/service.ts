@@ -1,6 +1,6 @@
 import { Injectable } from "@danet/core";
 import { BrowserService } from "../core/services/browser.service.ts";
-import { GeneratePDFDto } from "./dto.ts";
+import { GeneratePDFDto, WebhookDto } from "./dto.ts";
 import { Browser, Page, PDFOptions } from "puppeteer";
 
 @Injectable()
@@ -19,8 +19,9 @@ export class PDFService {
   }
 
   private async generatePdfTask(browser: Browser, dto: GeneratePDFDto) {
-    const page = await browser.newPage();
+    let page: Page | null = null;
     try {
+      page = await browser.newPage();
       await page.emulateMediaType("print");
       await page.goto(dto.url, { waitUntil: "networkidle2" });
 
@@ -42,20 +43,67 @@ export class PDFService {
 
       const pdfBuffer = await page.pdf(pdfOptions);
 
-      if (dto.webhookUrl) {
-        const blob = new Blob([new Uint8Array(pdfBuffer)], { type: 'application/pdf' });
-        const formData = new FormData();
-        formData.append('file', blob, 'document.pdf');
-        await fetch(dto.webhookUrl, {
-          method: "POST",
-          body: formData,
-        });
+      if (dto.webhook) {
+        await this.sendWebhook(dto.webhook, { success: true }, pdfBuffer);
       }
 
       return pdfBuffer;
+    } catch (error: unknown) {
+        console.error("PDF generation failed", error);
+        if (dto.webhook) {
+            let errorCode = "UNKNOWN_ERROR";
+            let errorMessage = "An unknown error occurred";
+
+            if (error instanceof Error) {
+                errorMessage = error.message;
+                // Simple heuristic for error codes
+                if (errorMessage.includes("net::")) {
+                     errorCode = "NAVIGATION_FAILED";
+                } else if (errorMessage.includes("Protocol error")) {
+                    errorCode = "BROWSER_CONNECTION_FAILED";
+                } else if (errorMessage.includes("PrintToPDF")) {
+                    errorCode = "PDF_GENERATION_FAILED";
+                }
+            }
+            
+            await this.sendWebhook(dto.webhook, {
+                success: false,
+                errorCode,
+                errorMessage
+            }).catch(err => console.error("Failed to send error webhook", err));
+        }
     } finally {
-      await page.close();
+      if (page) {
+           await page.close().catch(e => console.error("Error closing page", e));
+      }
     }
+  }
+
+  private async sendWebhook(
+      webhook: WebhookDto, 
+      statusPayload: Record<string, unknown>, 
+      pdfBuffer?: Uint8Array
+  ) {
+      const formData = new FormData();
+      
+      if (pdfBuffer) {
+        const blob = new Blob([new Uint8Array(pdfBuffer)], { type: 'application/pdf' });
+        formData.append('file', blob, 'document.pdf');
+      }
+
+      const payload = {
+          ...webhook.customPayload,
+          ...statusPayload
+      };
+
+      for (const [key, value] of Object.entries(payload)) {
+            formData.append(key, String(value));
+      }
+
+      await fetch(webhook.url, {
+        method: "POST",
+        body: formData,
+      });
   }
 
   private async hideEverythingBesidesContainer(
