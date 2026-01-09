@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@danet/core";
 import { BrowserService } from "../core/services/browser.service.ts";
 import { GeneratePDFDto, WebhookDto } from "./dto.ts";
 import { Browser, Page, PDFOptions } from "puppeteer";
+import process from "node:process";
 
 @Injectable()
 export class PDFService {
@@ -118,6 +119,9 @@ export class PDFService {
       const response = await fetch(webhook.url, {
         method: "POST",
         body: formData,
+        headers: {
+          'Origin': `${process.env.RAILWAY_PRIVATE_DOMAIN}:${process.env.PORT}`
+        },
       });
 
       if (!response.ok) {
