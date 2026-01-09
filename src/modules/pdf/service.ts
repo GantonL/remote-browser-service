@@ -115,10 +115,17 @@ export class PDFService {
             formData.append(key, String(value));
       }
 
-      await fetch(webhook.url, {
+      const response = await fetch(webhook.url, {
         method: "POST",
         body: formData,
       });
+
+      if (!response.ok) {
+        const text = await response.text();
+        this.logger.error(`Webhook request failed with status ${response.status}: ${text}`);
+      } else {
+        this.logger.log(`Webhook request successful with status ${response.status}`);
+      }
   }
 
   private async hideEverythingBesidesContainer(
