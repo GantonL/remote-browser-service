@@ -120,7 +120,7 @@ export class PDFService {
         method: "POST",
         body: formData,
         headers: {
-          'Origin': `${process.env.RAILWAY_PRIVATE_DOMAIN}:${process.env.PORT}`
+          'Origin': `http://${process.env.RAILWAY_PRIVATE_DOMAIN}:${process.env.PORT}`
         },
       });
 
