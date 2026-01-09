@@ -1,17 +1,20 @@
-import { Injectable } from "@danet/core";
+import { Injectable, Logger } from "@danet/core";
 import { BrowserService } from "../core/services/browser.service.ts";
 import { GeneratePDFDto, WebhookDto } from "./dto.ts";
 import { Browser, Page, PDFOptions } from "puppeteer";
 
 @Injectable()
 export class PDFService {
+  private readonly logger = new Logger(PDFService.name);
+
   constructor(private readonly browserService: BrowserService) {}
 
   async generate(dto: GeneratePDFDto) {
+    this.logger.log(`Received PDF generation request for URL: ${dto.url}`);
     const browser = await this.browserService.getBrowser();
 
     this.generatePdfTask(browser, dto).catch((err) =>
-      console.error("Async PDF generation failed", err),
+      this.logger.error(`Async PDF generation failed: ${err}`)
     );
     return {
       message: "PDF generation started in background, check webhook for result",
@@ -20,10 +23,16 @@ export class PDFService {
 
   private async generatePdfTask(browser: Browser, dto: GeneratePDFDto) {
     let page: Page | null = null;
+    this.logger.log(`Starting PDF generation task for ${dto.url}`);
     try {
       page = await browser.newPage();
+      this.logger.log("New page created");
+      
       await page.emulateMediaType("print");
+      
+      this.logger.log(`Navigating to ${dto.url}...`);
       await page.goto(dto.url, { waitUntil: "networkidle2" });
+      this.logger.log("Navigation completed");
 
       const pdfOptions: PDFOptions = {
         ...dto.options,
@@ -38,18 +47,23 @@ export class PDFService {
       };
 
       if (dto.containerClass) {
+        this.logger.log(`Hiding everything besides container: ${dto.containerClass}`);
         await this.hideEverythingBesidesContainer(page, dto.containerClass);
       }
 
+      this.logger.log("Generating PDF...");
       const pdfBuffer = await page.pdf(pdfOptions);
+      this.logger.log(`PDF generated successfully. Size: ${pdfBuffer.length} bytes`);
 
       if (dto.webhook) {
+        this.logger.log(`Sending success webhook to ${dto.webhook.url}`);
         await this.sendWebhook(dto.webhook, { success: true }, pdfBuffer);
+        this.logger.log("Success webhook sent");
       }
 
       return pdfBuffer;
     } catch (error: unknown) {
-        console.error("PDF generation failed", error);
+        this.logger.error(`PDF generation failed: ${error}`);
         if (dto.webhook) {
             let errorCode = "UNKNOWN_ERROR";
             let errorMessage = "An unknown error occurred";
@@ -66,15 +80,16 @@ export class PDFService {
                 }
             }
             
+            this.logger.log(`Sending error webhook to ${dto.webhook.url}`);
             await this.sendWebhook(dto.webhook, {
                 success: false,
                 errorCode,
                 errorMessage
-            }).catch(err => console.error("Failed to send error webhook", err));
+            }).catch(err => this.logger.error(`Failed to send error webhook: ${err}`));
         }
     } finally {
       if (page) {
-           await page.close().catch(e => console.error("Error closing page", e));
+           await page.close().catch(e => this.logger.error(`Error closing page: ${e}`));
       }
     }
   }
