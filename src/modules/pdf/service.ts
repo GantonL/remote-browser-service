@@ -1,20 +1,19 @@
 import { Injectable, Logger } from "@danet/core";
-import { BrowserService } from "../core/services/browser.service.ts";
+import { PageService } from "../core/services/page.service.ts";
 import { GeneratePDFDto, WebhookDto } from "./dto.ts";
-import { Browser, Page, PDFOptions } from "puppeteer";
+import { Page, PDFOptions } from "puppeteer";
 import process from "node:process";
 
 @Injectable()
 export class PDFService {
   private readonly logger = new Logger(PDFService.name);
 
-  constructor(private readonly browserService: BrowserService) {}
+  constructor(private readonly pageService: PageService) {}
 
   async generate(dto: GeneratePDFDto) {
     this.logger.log(`Received PDF generation request for URL: ${dto.url}`);
-    const browser = await this.browserService.getBrowser();
 
-    this.generatePdfTask(browser, dto).catch((err) =>
+    this.generatePdfTask(dto).catch((err) =>
       this.logger.error(`Async PDF generation failed: ${err}`)
     );
     return {
@@ -22,11 +21,11 @@ export class PDFService {
     };
   }
 
-  private async generatePdfTask(browser: Browser, dto: GeneratePDFDto) {
+  private async generatePdfTask(dto: GeneratePDFDto) {
     let page: Page | null = null;
     this.logger.log(`Starting PDF generation task for ${dto.url}`);
     try {
-      page = await browser.newPage();
+      page = await this.pageService.createPage();
       this.logger.log("New page created");
       
       await page.emulateMediaType("print");
@@ -44,7 +43,7 @@ export class PDFService {
           left: "5mm",
           right: "5mm",
         },
-        path: "test.pdf",
+        // path: "test.pdf", uncomment to debug
       };
 
       if (dto.containerClass) {
