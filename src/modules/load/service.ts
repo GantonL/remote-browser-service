@@ -1,10 +1,29 @@
 import { Injectable } from "@danet/core";
 import { PageService } from "../core/services/page.service.ts";
 import { LOAD_STATUS_MAPPING, LoadStatus } from "./constants.ts";
+import { BrowserService } from "../core/services/browser.service.ts";
 
 @Injectable()
 export class LoadService {
-  constructor(private readonly pageService: PageService) {}
+  constructor(
+    private readonly pageService: PageService,
+    private readonly browserService: BrowserService,
+  ) {}
+
+  async reset() {
+    const browserAlive = this.browserService.isAlive();
+    if (browserAlive) {
+      await this.browserService.kill();
+    }
+  }
+
+  async prepareForLoad() {
+    const stats = this.pageService.getLoadStats();
+    if (stats.active || stats.queue) return;
+    const browserAlive = this.browserService.isAlive();
+    if (browserAlive) return;
+    await this.browserService.getBrowser();
+  }
 
   getLoadStatus() {
     const stats = this.pageService.getLoadStats();
