@@ -43,12 +43,18 @@ export class PageService extends EventEmitter {
 
   private async processQueue() {
     if (this.pageQueue.length > 0 && this.activePageCount < this.MAX_PAGES) {
-        this.logger.log("Processing queued page request...");
-        const resolve = this.pageQueue.shift();
-        if (resolve) {
-            const page = await this.launchPage();
-            resolve(page);
-        }
+      this.logger.log("Processing queued page request...");
+      const resolve = this.pageQueue.shift();
+      if (resolve) {
+        this.browserService.idleKill();
+        const page = await this.launchPage();
+        resolve(page);
+      }
+      return;
+    }
+    if (this.activePageCount === 0) {
+      this.browserService.debounceKill();
+      return;
     }
   }
 
