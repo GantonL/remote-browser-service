@@ -14,7 +14,7 @@ export class PDFService {
     this.logger.log(`Received PDF generation request for URL: ${dto.url}`);
 
     this.generatePdfTask(dto).catch((err) =>
-      this.logger.error(`Async PDF generation failed: ${err}`)
+      this.logger.error(`Async PDF generation failed: ${err}`),
     );
     return {
       message: "PDF generation started in background, check webhook for result",
@@ -27,9 +27,10 @@ export class PDFService {
     try {
       page = await this.pageService.createPage();
       this.logger.log("New page created");
-      
+
       await page.emulateMediaType("print");
-      
+      await page.evaluateHandle("document.fonts.ready");
+
       this.logger.log(`Navigating to ${dto.url}...`);
       await page.goto(dto.url, { waitUntil: "networkidle2" });
       this.logger.log("Navigation completed");
@@ -47,13 +48,17 @@ export class PDFService {
       };
 
       if (dto.containerClass) {
-        this.logger.log(`Hiding everything besides container: ${dto.containerClass}`);
+        this.logger.log(
+          `Hiding everything besides container: ${dto.containerClass}`,
+        );
         await this.hideEverythingBesidesContainer(page, dto.containerClass);
       }
 
       this.logger.log("Generating PDF...");
       const pdfBuffer = await page.pdf(pdfOptions);
-      this.logger.log(`PDF generated successfully. Size: ${pdfBuffer.length} bytes`);
+      this.logger.log(
+        `PDF generated successfully. Size: ${pdfBuffer.length} bytes`,
+      );
 
       if (dto.webhook) {
         this.logger.log(`Sending success webhook to ${dto.webhook.url}`);
@@ -63,72 +68,82 @@ export class PDFService {
 
       return pdfBuffer;
     } catch (error: unknown) {
-        this.logger.error(`PDF generation failed: ${error}`);
-        if (dto.webhook) {
-            let errorCode = "UNKNOWN_ERROR";
-            let errorMessage = "An unknown error occurred";
+      this.logger.error(`PDF generation failed: ${error}`);
+      if (dto.webhook) {
+        let errorCode = "UNKNOWN_ERROR";
+        let errorMessage = "An unknown error occurred";
 
-            if (error instanceof Error) {
-                errorMessage = error.message;
-                // Simple heuristic for error codes
-                if (errorMessage.includes("net::")) {
-                     errorCode = "NAVIGATION_FAILED";
-                } else if (errorMessage.includes("Protocol error")) {
-                    errorCode = "BROWSER_CONNECTION_FAILED";
-                } else if (errorMessage.includes("PrintToPDF")) {
-                    errorCode = "PDF_GENERATION_FAILED";
-                }
-            }
-            
-            this.logger.log(`Sending error webhook to ${dto.webhook.url}`);
-            await this.sendWebhook(dto.webhook, {
-                success: false,
-                errorCode,
-                errorMessage
-            }).catch(err => this.logger.error(`Failed to send error webhook: ${err}`));
+        if (error instanceof Error) {
+          errorMessage = error.message;
+          // Simple heuristic for error codes
+          if (errorMessage.includes("net::")) {
+            errorCode = "NAVIGATION_FAILED";
+          } else if (errorMessage.includes("Protocol error")) {
+            errorCode = "BROWSER_CONNECTION_FAILED";
+          } else if (errorMessage.includes("PrintToPDF")) {
+            errorCode = "PDF_GENERATION_FAILED";
+          }
         }
+
+        this.logger.log(`Sending error webhook to ${dto.webhook.url}`);
+        await this.sendWebhook(dto.webhook, {
+          success: false,
+          errorCode,
+          errorMessage,
+        }).catch((err) =>
+          this.logger.error(`Failed to send error webhook: ${err}`),
+        );
+      }
     } finally {
       if (page) {
-           await page.close().catch(e => this.logger.error(`Error closing page: ${e}`));
+        await page
+          .close()
+          .catch((e) => this.logger.error(`Error closing page: ${e}`));
       }
     }
   }
 
   private async sendWebhook(
-      webhook: WebhookDto, 
-      statusPayload: Record<string, unknown>, 
-      pdfBuffer?: Uint8Array
+    webhook: WebhookDto,
+    statusPayload: Record<string, unknown>,
+    pdfBuffer?: Uint8Array,
   ) {
-      const formData = new FormData();
-      
-      if (pdfBuffer) {
-        const blob = new Blob([new Uint8Array(pdfBuffer)], { type: 'application/pdf' });
-        formData.append('file', blob, 'document.pdf');
-      }
+    const formData = new FormData();
 
-      const payload = {
-          ...webhook.customPayload,
-          ...statusPayload
-      };
-
-      for (const [key, value] of Object.entries(payload)) {
-            formData.append(key, String(value));
-      }
-
-      const response = await fetch(webhook.url, {
-        method: "POST",
-        body: formData,
-        headers: {
-          'Origin': `http://${process.env.RAILWAY_PRIVATE_DOMAIN}:${process.env.PORT}`
-        },
+    if (pdfBuffer) {
+      const blob = new Blob([new Uint8Array(pdfBuffer)], {
+        type: "application/pdf",
       });
+      formData.append("file", blob, "document.pdf");
+    }
 
-      if (!response.ok) {
-        const text = await response.text();
-        this.logger.error(`Webhook request failed with status ${response.status}: ${text}`);
-      } else {
-        this.logger.log(`Webhook request successful with status ${response.status}`);
-      }
+    const payload = {
+      ...webhook.customPayload,
+      ...statusPayload,
+    };
+
+    for (const [key, value] of Object.entries(payload)) {
+      formData.append(key, String(value));
+    }
+
+    const response = await fetch(webhook.url, {
+      method: "POST",
+      body: formData,
+      headers: {
+        Origin: `http://${process.env.RAILWAY_PRIVATE_DOMAIN}:${process.env.PORT}`,
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      this.logger.error(
+        `Webhook request failed with status ${response.status}: ${text}`,
+      );
+    } else {
+      this.logger.log(
+        `Webhook request successful with status ${response.status}`,
+      );
+    }
   }
 
   private async hideEverythingBesidesContainer(

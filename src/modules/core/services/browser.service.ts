@@ -73,7 +73,13 @@ export class BrowserService implements OnAppClose {
       this.logger.log("Launching new browser instance...");
       this.browser = await puppeteer.launch({
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--font-render-hinting=none",
+          "--force-color-profile=srgb",
+          "--disable-font-subpixel-positioning",
+        ],
       });
       this.logger.log("Browser launched successfully.");
     } catch (e) {
